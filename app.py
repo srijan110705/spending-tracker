@@ -68,20 +68,17 @@ def check_password():
 
     if not st.session_state.authenticated:
         st.title("🔒 App Locked")
-        st.caption("Enter your PIN to access the Cloud Dashboard.")
-        
         pin = st.text_input("4-Digit PIN", type="password")
+        
         if st.button("Unlock", type="primary"):
-            input_hash = hashlib.sha256(pin.encode()).hexdigest()
-            stored_hash = settings.get("pin_hash")
-            
-            if input_hash == stored_hash:
+            # EMERGENCY OVERRIDE: This bypasses the hash check
+            if pin == "1234":
                 st.session_state.authenticated = True
                 st.rerun()
             else:
                 st.error("🚨 Incorrect PIN.")
         st.stop()
-
+        
 check_password()
 
 # --- ML ENGINE ---
