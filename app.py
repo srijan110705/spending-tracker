@@ -6,15 +6,18 @@ import os
 import json
 import plotly.express as px
 
-def get_today_ist():
-    # Force the app to calculate the date based on India Standard Time
-    ist = pytz.timezone('Asia/Kolkata')
-    return datetime.now(ist).date()
+# --- MACHINE LEARNING IMPORTS ---
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
 
 # --- FILE SETUP ---
 DATA_FILE = "my_spendings.csv"
 SETTINGS_FILE = "settings.json"
-# The hardcoded SPENDING_CATEGORIES list has been completely removed.
+
+def get_today_ist():
+    ist = pytz.timezone('Asia/Kolkata')
+    return datetime.now(ist).date()
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -40,13 +43,33 @@ def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f)
 
-st.set_page_config(page_title="Spending Dashboard", layout="wide")
+# --- MACHINE LEARNING ENGINE ---
+def train_category_model(df):
+    """Trains a lightweight NLP model if there is enough data."""
+    # Only train on rows that actually have notes
+    train_data = df[df["Note"].str.strip() != ""]
+    
+    # We need at least 5 examples before the ML can make somewhat educated guesses
+    if len(train_data) < 5:
+        return None
+        
+    X = train_data["Note"]
+    y = train_data["Category"]
+    
+    # Create a pipeline that turns text into numbers, then feeds it to Naive Bayes
+    model = make_pipeline(TfidfVectorizer(), MultinomialNB())
+    model.fit(X, y)
+    return model
+
+st.set_page_config(page_title="Spending Dashboard", page_icon="🪙", layout="wide")
 st.title("💸 Monthly Spending Dashboard")
 
 if "df" not in st.session_state:
     st.session_state.df = load_data()
 if "settings" not in st.session_state:
     st.session_state.settings = load_settings()
+if "ml_model" not in st.session_state:
+    st.session_state.ml_model = train_category_model(st.session_state.df)
 
 df = st.session_state.df
 settings = st.session_state.settings
@@ -61,10 +84,7 @@ base_limit = st.sidebar.number_input("Monthly Limit (₹)", min_value=0.0, value
 start_date_input = st.sidebar.date_input("Anchor Start Date", value=date.fromisoformat(settings.get("start_date", str(get_today_ist()))))
 
 if st.sidebar.button("Update Settings"):
-    new_settings = {
-        "limit": base_limit, 
-        "start_date": str(start_date_input)
-    }
+    new_settings = {"limit": base_limit, "start_date": str(start_date_input)}
     save_settings(new_settings)
     st.session_state.settings = new_settings
     st.sidebar.success("Settings Updated!")
@@ -82,13 +102,20 @@ st.sidebar.download_button(
     mime="text/csv"
 )
 
-# --- INPUT SECTION ---
+# --- INPUT SECTION WITH SMART PREDICTOR ---
 st.header("Log a Transaction")
+
+def auto_predict_category():
+    """Callback function: Runs the exact millisecond you finish typing your Note."""
+    note = st.session_state.note_input.strip()
+    # If the model is trained and they typed a note, predict it
+    if note and st.session_state.ml_model is not None:
+        predicted_cat = st.session_state.ml_model.predict([note])[0]
+        st.session_state.category_input = predicted_cat
 
 def save_transaction():
     amt = st.session_state.amount_input
     if amt > 0:
-        # Dynamic Category Logic: Clean up the text or default to Miscellaneous
         raw_category = st.session_state.category_input.strip()
         final_category = raw_category.title() if raw_category else "Miscellaneous"
 
@@ -101,10 +128,13 @@ def save_transaction():
         st.session_state.df = pd.concat([st.session_state.df, new_entry], ignore_index=True)
         save_data(st.session_state.df)
         
+        # Retrain the ML model instantly so it gets smarter on the very next entry
+        st.session_state.ml_model = train_category_model(st.session_state.df)
+        
         # Reset the inputs
         st.session_state.amount_input = 0.0 
         st.session_state.note_input = "" 
-        st.session_state.category_input = "" # Auto-clear the category box too
+        st.session_state.category_input = "" 
         st.toast("Transaction Saved Successfully!", icon="✅")
 
 with st.container(border=True):
@@ -112,12 +142,12 @@ with st.container(border=True):
     
     with col1:
         st.date_input("Date", get_today_ist(), key="date_input") 
-        # Replaced the dropdown with a dynamic text input
-        st.text_input("Category", placeholder="e.g. Food, Taxi (Defaults to Miscellaneous)", key="category_input")
+        # Note is now placed ABOVE category so the logic flows downward
+        st.text_input("Short Note (Optional)", placeholder="e.g., Zomato, Book...", key="note_input", on_change=auto_predict_category)
         
     with col2:
         st.number_input("Amount (₹)", min_value=0.0, format="%.2f", key="amount_input")
-        st.text_input("Short Note (Optional)", placeholder="e.g., Movie tickets...", key="note_input")
+        st.text_input("Category", placeholder="e.g. Food (Auto-predicts from Note)", key="category_input")
     
     st.button("Save Entry", type="primary", on_click=save_transaction)
 
@@ -169,9 +199,7 @@ total_spent = 0.0
 parent_spent = 0.0
 
 if not active_cycle_df.empty:
-    # Ensure backward compatibility by checking for "Parent" regardless of how it was typed
     is_parent = active_cycle_df["Category"].str.strip().str.title() == "Parent"
-    
     total_spent = active_cycle_df[~is_parent]["Amount"].sum()
     parent_spent = active_cycle_df[is_parent]["Amount"].sum()
 
@@ -185,7 +213,6 @@ today = get_today_ist()
 
 is_past = today >= cycle_end_date
 is_current = (today >= cycle_start_date) and (today < cycle_end_date)
-
 cycle_length = (cycle_end_date - cycle_start_date).days 
 
 if is_past:
@@ -247,13 +274,9 @@ col_chart1, col_chart2 = st.columns(2)
 
 with col_chart1:
     st.subheader("Total by Category")
-    
     if not active_cycle_df.empty:
-        # Filter out Parent cleanly
         is_parent = active_cycle_df["Category"].str.strip().str.title() == "Parent"
         spendings_df = active_cycle_df[~is_parent].copy()
-        
-        # Standardize the text for grouping just in case there are formatting variations
         spendings_df["CleanCategory"] = spendings_df["Category"].str.strip().str.title()
         category_totals = spendings_df.groupby("CleanCategory")["Amount"].sum() if not spendings_df.empty else pd.Series(dtype=float)
     else:
@@ -272,7 +295,6 @@ with col_chart1:
     
 with col_chart2:
     st.subheader("Daily Spending Trend")
-    
     if is_past:
         graph_end_date = cycle_end_date - pd.Timedelta(days=1)
     else:
@@ -320,7 +342,7 @@ edited_df = st.data_editor(
     use_container_width=True,
     hide_index=True,
     column_config={
-        "Category": st.column_config.TextColumn("Category"), # Unlocked category editing
+        "Category": st.column_config.TextColumn("Category"),
         "Amount": st.column_config.NumberColumn("Amount", format="₹%.2f", min_value=0.0),
         "Note": st.column_config.TextColumn("Note")
     }
@@ -329,4 +351,6 @@ edited_df = st.data_editor(
 if not edited_df.equals(display_df):
     st.session_state.df = edited_df.sort_values(by="Date", ascending=True).reset_index(drop=True)
     save_data(st.session_state.df)
+    # Retrain model if data gets manually edited or deleted!
+    st.session_state.ml_model = train_category_model(st.session_state.df)
     st.rerun()
