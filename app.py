@@ -35,7 +35,7 @@ def load_cloud_settings():
         if not df.empty:
             return dict(zip(df['Key'].astype(str), df['Value'].astype(str)))
     except: pass
-    return {"limit": "1000.0", "start_date": str(get_today_ist()), "pin_hash": "3b350637172551152a6587399879976378411b93f7c46928e370423c8a329972"}
+    return {"limit": "1000.0", "start_date": str(get_today_ist())}
 
 def save_to_cloud(df_spendings, settings_dict):
     conn.update(spreadsheet=SHEET_URL, worksheet="Spendings", data=df_spendings)
@@ -48,22 +48,6 @@ if "df" not in st.session_state:
     st.session_state.df = load_cloud_data()
 
 settings = st.session_state.settings
-
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if not st.session_state.authenticated:
-        st.title("🔒 App Locked")
-        pin = st.text_input("4-Digit PIN", type="password")
-        if st.button("Unlock", type="primary"):
-            input_hash = hashlib.sha256(pin.encode()).hexdigest()
-            if input_hash == settings.get("pin_hash"):
-                st.session_state.authenticated = True
-                st.rerun()
-            else: st.error("🚨 Incorrect PIN.")
-        st.stop()
-
-check_password()
 
 # --- ML ENGINE ---
 def train_category_model(df):
@@ -90,19 +74,6 @@ st.title("💸 Monthly Spending Dashboard")
 
 # --- SIDEBAR ---
 st.sidebar.markdown(f"### 📅 Today: {get_today_ist().strftime('%A, %B %d')}")
-if st.sidebar.button("🔒 Lock App"):
-    st.session_state.authenticated = False
-    st.rerun()
-
-with st.sidebar.expander("🔐 Security & PIN"):
-    curr_p = st.text_input("Current PIN", type="password")
-    new_p = st.text_input("New PIN", type="password", max_chars=4)
-    if st.button("Update PIN"):
-        if hashlib.sha256(curr_p.encode()).hexdigest() == settings.get("pin_hash"):
-            settings["pin_hash"] = hashlib.sha256(new_p.encode()).hexdigest()
-            save_to_cloud(st.session_state.df, settings)
-            st.success("PIN Updated!")
-        else: st.error("Current PIN incorrect.")
 
 st.sidebar.header("⚙️ Cycle Settings")
 base_limit = st.sidebar.number_input("Monthly Limit (₹)", value=float(settings.get("limit", 1000.0)))
