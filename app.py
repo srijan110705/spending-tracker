@@ -6,14 +6,6 @@ import os
 import json
 import hashlib
 import plotly.express as px
-from streamlit_gsheets import GSheetsConnectioimport streamlit as st
-import pandas as pd
-from datetime import datetime, date
-import pytz
-import os
-import json
-import hashlib
-import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
 # --- MACHINE LEARNING IMPORTS ---
