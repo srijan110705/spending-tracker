@@ -29,6 +29,7 @@ def get_today_ist():
 def load_cloud_data():
     try:
         df = conn.read(spreadsheet=SHEET_URL, worksheet="Spendings")
+        df["Note"] = df["Note"].fillna("").astype(str)
         if df.empty:
             return pd.DataFrame(columns=["Date", "Category", "Amount", "Note"])
         return df
@@ -78,16 +79,26 @@ def check_password():
             else:
                 st.error("🚨 Incorrect PIN.")
         st.stop()
-        
+
 check_password()
 
 # --- ML ENGINE ---
 def train_category_model(df):
-    if df.empty or len(df[df["Note"].astype(str).str.strip() != ""]) < 5:
+    if df.empty:
         return None
-    train_data = df[df["Note"].astype(str).str.strip() != ""]
+    
+    # NEW: Ensure the 'Note' column is strictly text and fill empty cells with a blank string
+    df["Note"] = df["Note"].fillna("").astype(str)
+    
+    # Only train on rows that actually have a note and a category
+    train_data = df[(df["Note"].str.strip() != "") & (df["Category"].notna())]
+    
+    if len(train_data) < 5:
+        return None
+        
     X = train_data["Note"]
     y = train_data["Category"]
+    
     model = make_pipeline(TfidfVectorizer(), MultinomialNB())
     model.fit(X, y)
     return model
