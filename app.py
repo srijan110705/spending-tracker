@@ -1,9 +1,15 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import datetime, date
+import pytz
 import os
 import json
 import plotly.express as px
+
+def get_today_ist():
+    # Force the app to calculate the date based on India Standard Time
+    ist = pytz.timezone('Asia/Kolkata')
+    return datetime.now(ist).date()
 
 # --- FILE SETUP ---
 DATA_FILE = "my_spendings.csv"
@@ -28,7 +34,7 @@ def load_settings():
         with open(SETTINGS_FILE, "r") as f:
             return json.load(f)
     else:
-        return {"limit": 1000.0, "start_date": str(date.today())}
+        return {"limit": 1000.0, "start_date": str(get_today_ist())}
 
 def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
@@ -46,13 +52,13 @@ df = st.session_state.df
 settings = st.session_state.settings
 
 # --- SIDEBAR: SETTINGS & BACKUP ---
-formatted_date = date.today().strftime("%A, %B %d, %Y")
+formatted_date = get_today_ist().strftime("%A, %B %d, %Y")
 st.sidebar.markdown(f"### 📅 Today: {formatted_date}")
 
 st.sidebar.header("⚙️ Cycle Settings")
 st.sidebar.caption("This start date acts as the anchor for all your monthly cycles.")
 base_limit = st.sidebar.number_input("Monthly Limit (₹)", min_value=0.0, value=float(settings.get("limit", 1000.0)), step=100.0)
-start_date_input = st.sidebar.date_input("Anchor Start Date", value=date.fromisoformat(settings.get("start_date", str(date.today()))))
+start_date_input = st.sidebar.date_input("Anchor Start Date", value=date.fromisoformat(settings.get("start_date", str(get_today_ist()))))
 
 if st.sidebar.button("Update Settings"):
     new_settings = {
@@ -72,7 +78,7 @@ csv_data = df.to_csv(index=False).encode('utf-8')
 st.sidebar.download_button(
     label="Download CSV Backup",
     data=csv_data,
-    file_name=f"spending_backup_{date.today()}.csv",
+    file_name=f"spending_backup_{get_today_ist()}.csv",
     mime="text/csv"
 )
 
@@ -105,7 +111,7 @@ with st.container(border=True):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.date_input("Date", date.today(), key="date_input") 
+        st.date_input("Date", get_today_ist(), key="date_input") 
         # Replaced the dropdown with a dynamic text input
         st.text_input("Category", placeholder="e.g. Food, Taxi (Defaults to Miscellaneous)", key="category_input")
         
@@ -118,7 +124,7 @@ with st.container(border=True):
 # --- CYCLE GENERATOR ENGINE ---
 df_calc = st.session_state.df.copy()
 anchor_ts = pd.Timestamp(settings["start_date"])
-today_ts = pd.Timestamp(date.today())
+today_ts = pd.Timestamp(get_today_ist())
 
 if not df_calc.empty:
     max_df_ts = pd.to_datetime(df_calc["Date"]).max()
@@ -175,7 +181,7 @@ remaining_budget = monthly_limit - total_spent
 # 2. Smart Math for Historical vs Current Cycles
 cycle_start_date = selected_cycle["start"]
 cycle_end_date = selected_cycle["end"]
-today = date.today()
+today = get_today_ist()
 
 is_past = today >= cycle_end_date
 is_current = (today >= cycle_start_date) and (today < cycle_end_date)
