@@ -46,6 +46,9 @@ df = st.session_state.df
 settings = st.session_state.settings
 
 # --- SIDEBAR: SETTINGS & BACKUP ---
+formatted_date = date.today().strftime("%A, %B %d, %Y")
+st.sidebar.markdown(f"### 📅 Today: {formatted_date}")
+
 st.sidebar.header("⚙️ Cycle Settings")
 st.sidebar.caption("This start date acts as the anchor for all your monthly cycles.")
 base_limit = st.sidebar.number_input("Monthly Limit (₹)", min_value=0.0, value=float(settings.get("limit", 1000.0)), step=100.0)
