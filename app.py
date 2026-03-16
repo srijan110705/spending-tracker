@@ -198,18 +198,61 @@ with avg_col2:
 
 st.divider()
 
-# Graphs and Master Ledger follow your original logic...
+# --- GRAPHS SECTION ---
 col_chart1, col_chart2 = st.columns(2)
+
 with col_chart1:
     st.subheader("Total by Category")
     if not active_cycle_df.empty:
+        # Filter out Parent
         is_parent = active_cycle_df["Category"].str.strip().str.title() == "Parent"
         spendings_df = active_cycle_df[~is_parent].copy()
-        spendings_df["CleanCategory"] = spendings_df["Category"].str.strip().str.title()
-        category_totals = spendings_df.groupby("CleanCategory")["Amount"].sum()
-        fig = px.pie(category_totals.reset_index(), values="Amount", names="CleanCategory", hole=0.3)
-        st.plotly_chart(fig, use_container_width=True)
-    else: st.info("No data to chart.")
+        
+        if not spendings_df.empty:
+            spendings_df["CleanCategory"] = spendings_df["Category"].str.strip().str.title()
+            category_totals = spendings_df.groupby("CleanCategory")["Amount"].sum().reset_index()
+            
+            # --- CUSTOM LEGEND LOGIC ---
+            # Create a new column for the legend that includes the category name AND the amount
+            category_totals["LegendLabel"] = category_totals.apply(
+                lambda row: f"{row['CleanCategory']}: ₹{row['Amount']:,.2f}", axis=1
+            )
+            
+            # Build the pie chart using the new LegendLabel for the 'names' parameter
+            fig = px.pie(
+                category_totals, 
+                values="Amount", 
+                names="LegendLabel", 
+                hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Pastel
+            )
+            
+            # Clean up the chart appearance
+            fig.update_traces(textinfo='percent', textposition='inside')
+            fig.update_layout(
+                legend_title_text='Category : Amount',
+                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.0)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No personal spending in this cycle.")
+    else:
+        st.info("No data available for this cycle.")
+
+with col_chart2:
+    st.subheader("Daily Spending Trend")
+    if not active_cycle_df.empty:
+        is_parent = active_cycle_df["Category"].str.strip().str.title() == "Parent"
+        daily_df = active_cycle_df[~is_parent].copy()
+        if not daily_df.empty:
+            daily_df["Date"] = pd.to_datetime(daily_df["Date"])
+            daily_trend = daily_df.groupby("Date")["Amount"].sum()
+            st.line_chart(daily_trend)
+        else:
+            st.info("No daily data to trend.")
+    else:
+        st.info("No data available.")
 
 with col_chart2:
     st.subheader("Daily Trend")
