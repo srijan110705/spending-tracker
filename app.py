@@ -254,14 +254,6 @@ with col_chart2:
     else:
         st.info("No data available.")
 
-with col_chart2:
-    st.subheader("Daily Trend")
-    if not active_cycle_df.empty:
-        is_parent = active_cycle_df["Category"].str.strip().str.title() == "Parent"
-        daily_df = active_cycle_df[~is_parent].copy()
-        daily_df["Date"] = pd.to_datetime(daily_df["Date"])
-        daily_trend = daily_df.groupby("Date")["Amount"].sum()
-        st.line_chart(daily_trend)
 
 st.divider()
 st.subheader("Master Ledger")
