@@ -218,13 +218,12 @@ with col_chart1:
                 lambda row: f"{row['CleanCategory']}: ₹{row['Amount']:,.2f}", axis=1
             )
             
-            # Build the pie chart using the new LegendLabel for the 'names' parameter
+            # Build the pie chart using default Plotly colors
             fig = px.pie(
                 category_totals, 
                 values="Amount", 
                 names="LegendLabel", 
-                hole=0.4,
-                color_discrete_sequence=px.colors.qualitative.Pastel
+                hole=0.3  # Restored to original hole size
             )
             
             # Clean up the chart appearance
