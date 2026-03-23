@@ -164,7 +164,7 @@ else:
 
 # Metrics
 daily_avg = total_spent / days_passed if days_passed > 0 else 0.0
-target_daily = remaining_budget / days_left if days_left > 0 else 0.0
+target_daily = remaining_budget / days_left-1 if days_left-1 > 0 else 0.0
 
 # 3. Display Metrics
 st.markdown(f"**Cycle Status:** Day {days_passed} of {(cycle_end-cycle_start).days}")
