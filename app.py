@@ -26,7 +26,12 @@ def load_data():
         return pd.DataFrame(columns=["Date", "Category", "Amount", "Note"])
 
 def save_data(df):
-    conn.update(spreadsheet=SHEET_URL, worksheet="Spendings", data=df)
+    try:
+        conn.update(spreadsheet=SHEET_URL, worksheet="Spendings", data=df)
+    except Exception as e:
+        st.error(f"Failed to update Spendings: {e}")
+        st.stop()
+
 
 def load_settings():
     try:
@@ -40,8 +45,12 @@ def load_settings():
     return {"limit": 1000.0, "start_date": str(get_today_ist())}
 
 def save_settings(settings_dict):
-    set_df = pd.DataFrame(list(settings_dict.items()), columns=['Key', 'Value'])
-    conn.update(spreadsheet=SHEET_URL, worksheet="Settings", data=set_df)
+    try:
+        set_df = pd.DataFrame(list(settings_dict.items()), columns=['Key', 'Value'])
+        conn.update(spreadsheet=SHEET_URL, worksheet="Settings", data=set_df)
+    except Exception as e:
+        st.error(f"Failed to update Settings: {e}")
+        st.stop()
 
 # --- INIT SESSION STATE ---
 if "df" not in st.session_state:
