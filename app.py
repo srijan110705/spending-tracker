@@ -12,7 +12,7 @@ def get_today_ist():
     return datetime.now(ist).date()
 
 # --- GOOGLE SHEETS SETUP ---
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1Azvpdn9vFelZbti3o8lwkVJqxK4xI2ifa3U-y8s5nTI/edit#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1Azvpdn9vFelZbti3o8lwkVJqxK4xI2ifa3U-y8s5nTI/edit?usp=drivesdk"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
