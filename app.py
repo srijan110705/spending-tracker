@@ -32,7 +32,6 @@ def save_data(df):
         st.error(f"Failed to update Spendings: {e}")
         st.stop()
 
-
 def load_settings():
     try:
         df = conn.read(spreadsheet=SHEET_URL, worksheet="Settings", ttl=0)
@@ -160,7 +159,7 @@ if not active_cycle_df.empty:
 monthly_limit = settings["limit"] 
 remaining_budget = monthly_limit - total_spent
 
-# 2. Averages Math (Fixed for accurate start/end days)
+# 2. Averages & Projection Math
 cycle_start = selected_cycle["start"]
 cycle_end = selected_cycle["end"]
 true_cycle_end = cycle_end - pd.Timedelta(days=1)
@@ -185,6 +184,10 @@ elif days_left == 0 and today <= true_cycle_end:
 else:
     target_daily = 0.0
 
+# Calculate Projected Spend
+projected_total = total_spent + (daily_avg * days_left) if days_left > 0 else total_spent
+projected_delta = monthly_limit - projected_total
+
 # 3. Display Metrics
 st.markdown(f"**Cycle Status:** Day {days_passed} of {(cycle_end-cycle_start).days}")
 m1, m2, m3, m4 = st.columns(4)
@@ -195,9 +198,9 @@ m4.metric("Remaining", f"₹{remaining_budget:,.2f}", delta=f"{remaining_budget:
 
 st.divider()
 
-# 4. Display Averages
-st.subheader("💡 Spending Pacing")
-avg_col1, avg_col2 = st.columns(2)
+# 4. Display Averages & Projections
+st.subheader("💡 Spending Pacing & Projections")
+avg_col1, avg_col2, avg_col3 = st.columns(3)
 
 with avg_col1:
     st.metric("Actual Daily Average", f"₹{daily_avg:,.2f} / day")
@@ -207,12 +210,25 @@ with avg_col2:
     if days_left > 0 or (days_left == 0 and today <= true_cycle_end):
         if remaining_budget > 0:
             st.metric("Target Daily Average", f"₹{target_daily:,.2f} / day")
-            st.caption(f"Maintain this to stay under your ₹{monthly_limit} limit for the next {max(days_left, 1)} days.")
+            st.caption(f"Maintain this to stay under your ₹{monthly_limit} limit.")
         else:
             st.metric("Target Daily Average", "₹0.00", delta="Over Limit", delta_color="inverse")
-            st.caption("You have already exhausted your budget for this cycle.")
+            st.caption("You have exhausted your budget.")
     else:
         st.metric("Target Daily Average", "N/A")
+        st.caption("Cycle has ended.")
+
+with avg_col3:
+    if days_left > 0 or (days_left == 0 and today <= true_cycle_end):
+        st.metric(
+            "Projected Total Spend", 
+            f"₹{projected_total:,.2f}", 
+            delta=f"{projected_delta:,.2f} vs Limit", 
+            delta_color="normal" if projected_delta >= 0 else "inverse"
+        )
+        st.caption(f"If you keep spending ₹{daily_avg:,.0f} per day.")
+    else:
+        st.metric("Final Total Spend", f"₹{total_spent:,.2f}")
         st.caption("Cycle has ended.")
 
 st.divider()
