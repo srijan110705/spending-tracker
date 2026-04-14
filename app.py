@@ -210,7 +210,7 @@ with avg_col2:
     if days_left > 0 or (days_left == 0 and today <= true_cycle_end):
         if remaining_budget > 0:
             st.metric("Target Daily Average", f"₹{target_daily:,.2f} / day")
-            st.caption(f"Maintain this to stay under your ₹{monthly_limit} limit for the next {max(days_left, 1)}days." )
+            st.caption(f"Maintain this to stay under your ₹{monthly_limit} limit for the next {max(days_left, 1)} days." )
         else:
             st.metric("Target Daily Average", "₹0.00", delta="Over Limit", delta_color="inverse")
             st.caption("You have exhausted your budget.")
@@ -226,7 +226,7 @@ with avg_col3:
             delta=f"{projected_delta:,.2f} vs Limit", 
             delta_color="normal" if projected_delta >= 0 else "inverse"
         )
-        st.caption(f"If you keep spending ₹{daily_avg:,.0f} per day.")
+        st.caption(f"If you keep spending ₹{daily_avg:,.0f} per day for the next {max(days_left, 1)} days.")
     else:
         st.metric("Final Total Spend", f"₹{total_spent:,.2f}")
         st.caption("Cycle has ended.")
